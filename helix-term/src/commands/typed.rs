@@ -1,7 +1,5 @@
 use std::fmt::Write;
-use std::fmt::Write;
 use std::ops::Deref;
-use std::{ffi::OsStr, ops::Deref};
 
 use crate::job::Job;
 
@@ -9,7 +7,6 @@ use super::*;
 
 use helix_core::fuzzy::fuzzy_match;
 use helix_core::{encoding, line_ending, shellwords::Shellwords};
-use helix_lsp::{lsp, Url};
 use helix_view::document::DEFAULT_LANGUAGE_NAME;
 use helix_view::editor::{Action, CloseError, ConfigEvent};
 use serde_json::Value;
@@ -2422,21 +2419,42 @@ fn move_buffer(
 
     ensure!(args.len() == 1, format!(":move takes one argument"));
 
-    let new_path =
-        helix_core::path::get_normalized_path(&PathBuf::from(args.first().unwrap().as_ref()));
-    let (_, doc) = current!(cx.editor);
-
+    let new_path = args.first().unwrap().to_string();
+    let doc = doc!(cx.editor);
     let old_path = doc
         .path()
         .ok_or_else(|| anyhow!("Scratch buffer cannot be moved. Use :write instead"))?
-        .clone();
+        .to_string_lossy()
+        .to_string();
 
-    doc.set_path(Some(new_path.as_path()));
+    let lsp_reply = doc.language_servers().find_map(|lsp| {
+        if let Some(future) = lsp.prepare_file_rename(old_path.clone(), new_path.clone()) {
+            match helix_lsp::block_on(future) {
+                Ok(edit) => return Some(edit),
+                Err(e) => {
+                    log::error!("LSP willRename request failed: {:?}", e);
+                }
+            }
+        };
+        None
+    });
 
+    if let Some(edit) = lsp_reply {
+        if let Err(e) = apply_workspace_edit(cx.editor, helix_lsp::OffsetEncoding::Utf8, &edit) {
+            log::error!(":move command failed to apply edits: {:?}", e);
+        };
+    }
+
+    let doc = doc_mut!(cx.editor);
+    doc.set_path(Some(&PathBuf::from(&new_path)));
     if let Err(e) = std::fs::rename(&old_path, doc.path().unwrap()) {
-        doc.set_path(Some(old_path.as_path()));
+        doc.set_path(Some(&PathBuf::from(old_path)));
         bail!("Could not move file: {}", e);
     };
+
+    doc.language_servers().for_each(|lsp| {
+        lsp.did_file_rename(old_path.clone(), new_path.clone());
+    });
 
     Ok(())
 }
