@@ -46,7 +46,8 @@ use helix_core::{
 };
 use helix_view::{
     document::{FormatterError, Mode, SCRATCH_BUFFER_NAME},
-    editor::{Action, Motion},
+    editor::Motion,
+    editor::{Action, CloseError},
     expansion,
     info::Info,
     input::KeyEvent,
@@ -3309,36 +3310,42 @@ impl PathStyleConfig {
 }
 
 fn buffer_picker(cx: &mut Context) {
-    let current = view!(cx.editor).doc;
-
-    struct BufferMeta<'a> {
+    struct BufferMeta {
         id: DocumentId,
-        path: Option<Cow<'a, Path>>,
+        path: Option<PathBuf>,
         is_modified: bool,
         is_current: bool,
         focused_at: std::time::Instant,
     }
 
-    let new_meta = |doc: &Document| BufferMeta {
-        id: doc.id(),
-        path: doc
-            .path()
-            .map(ToOwned::to_owned)
-            .map(helix_stdx::path::get_relative_path),
-        is_modified: doc.is_modified(),
-        is_current: doc.id() == current,
-        focused_at: doc.focused_at,
+    let get_items = |editor: &Editor| -> Vec<BufferMeta> {
+        let current = view!(editor).doc;
+
+        let new_meta = |doc: &Document| BufferMeta {
+            id: doc.id(),
+            path: doc
+                .path()
+                .map(ToOwned::to_owned)
+                .map(helix_stdx::path::get_relative_path)
+                .map(Cow::into_owned),
+            is_modified: doc.is_modified(),
+            is_current: doc.id() == current,
+            focused_at: doc.focused_at,
+        };
+
+        let mut items = editor
+            .documents
+            .values()
+            .map(new_meta)
+            .collect::<Vec<BufferMeta>>();
+
+        // mru
+        items.sort_unstable_by_key(|item| std::cmp::Reverse(item.focused_at));
+
+        items
     };
 
-    let mut items = cx
-        .editor
-        .documents
-        .values()
-        .map(new_meta)
-        .collect::<Vec<BufferMeta>>();
-
-    // mru
-    items.sort_unstable_by_key(|item| std::cmp::Reverse(item.focused_at));
+    let items = get_items(cx.editor);
 
     let columns = [
         PickerColumn::new("id", |meta: &BufferMeta, _| meta.id.to_string().into()),
@@ -3387,6 +3394,19 @@ fn buffer_picker(cx: &mut Context) {
             (cursor_line, cursor_line)
         });
         Some((meta.id.into(), lines))
+    })
+    .with_delete_item(move |editor, meta| {
+        if let Err(err) = editor.close_document(meta.id, false) {
+            editor.set_error(match err {
+                CloseError::BufferModified(s) => format!("Could not close modified buffer: {}", s),
+                CloseError::SaveError(s) => format!("Could not close buffer: {}", s),
+                CloseError::DoesNotExist => "Buffer does not exist".to_owned(),
+            });
+        } else {
+            editor.clear_status();
+        }
+
+        get_items(editor)
     });
     cx.push_layer(Box::new(overlaid(picker)));
 }
