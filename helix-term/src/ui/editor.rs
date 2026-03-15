@@ -31,7 +31,7 @@ use helix_view::{
     keyboard::{KeyCode, KeyModifiers},
     Document, Editor, Theme, View,
 };
-use std::{mem::take, num::NonZeroUsize, ops, path::PathBuf, rc::Rc};
+use std::{mem::take, num::NonZeroUsize, ops, path::PathBuf, rc::Rc, time::Instant};
 
 use tui::{buffer::Buffer as Surface, text::Span};
 
@@ -115,6 +115,27 @@ fn line_indent(text: RopeSlice, line_idx: usize) -> usize {
     }
 }
 
+/// Tracks the animation state for the indent scope guide.
+#[derive(Debug, Clone)]
+struct ScopeAnimationState {
+    /// The target scope we're animating towards: (start_line, end_line, indent_level)
+    target_scope: Option<(usize, usize, usize)>,
+    /// When the animation started
+    animation_start: Instant,
+    /// The previous scope we're animating from: (start_line, end_line, indent_level)
+    previous_scope: Option<(usize, usize, usize)>,
+}
+
+impl Default for ScopeAnimationState {
+    fn default() -> Self {
+        Self {
+            target_scope: None,
+            animation_start: Instant::now(),
+            previous_scope: None,
+        }
+    }
+}
+
 pub struct EditorView {
     pub keymaps: Keymaps,
     on_next_key: Option<(OnKeyCallback, OnKeyCallbackKind)>,
@@ -124,6 +145,8 @@ pub struct EditorView {
     spinners: ProgressSpinners,
     /// Tracks if the terminal window is focused by reaction to terminal focus events
     terminal_focused: bool,
+    /// Animation state for indent scope guides
+    scope_animation: ScopeAnimationState,
 }
 
 #[derive(Debug, Clone)]
@@ -147,6 +170,7 @@ impl EditorView {
             completion: None,
             spinners: ProgressSpinners::default(),
             terminal_focused: true,
+            scope_animation: ScopeAnimationState::default(),
         }
     }
 
@@ -155,7 +179,7 @@ impl EditorView {
     }
 
     pub fn render_view(
-        &self,
+        &mut self,
         editor: &Editor,
         doc: &Document,
         view: &View,
@@ -289,12 +313,47 @@ impl EditorView {
         // Compute current indent scope for indent guides if current_line mode is enabled
         let current_line_mode =
             is_focused && config.indent_guides.render && config.indent_guides.current_line;
-        let current_block = if current_line_mode {
-            let text = doc.text().slice(..);
-            let cursor_line = text.char_to_line(primary_cursor);
+        let animation_enabled = current_line_mode && config.indent_guides.animation;
+        let animation_duration = config.indent_guides.animation_duration;
+
+        let text = doc.text().slice(..);
+        let cursor_line = text.char_to_line(primary_cursor);
+
+        let new_scope = if current_line_mode {
             find_indent_scope(text, cursor_line)
         } else {
             None
+        };
+
+        // Calculate animation state
+        let (current_block, animation_state) = if animation_enabled {
+            // Check if scope changed
+            if new_scope != self.scope_animation.target_scope {
+                self.scope_animation.previous_scope = self.scope_animation.target_scope;
+                self.scope_animation.target_scope = new_scope;
+                self.scope_animation.animation_start = Instant::now();
+            }
+
+            let elapsed_ms = self.scope_animation.animation_start.elapsed().as_millis() as f64;
+            // Lines per millisecond - controls animation speed
+            // animation_duration is used as "time to animate 10 lines from each end"
+            let lines_per_ms = if animation_duration.is_zero() {
+                f64::INFINITY
+            } else {
+                10.0 / animation_duration.as_millis() as f64
+            };
+
+            let visible_lines = (elapsed_ms * lines_per_ms) as usize;
+
+            // Request redraw while animation might still be in progress
+            // (we don't know scope size here, so keep redrawing for a reasonable time)
+            if elapsed_ms < animation_duration.as_millis() as f64 * 3.0 {
+                helix_event::request_redraw();
+            }
+
+            (new_scope, Some((visible_lines, cursor_line)))
+        } else {
+            (new_scope, None)
         };
 
         render_document(
@@ -309,6 +368,7 @@ impl EditorView {
             decorations,
             current_line_mode,
             current_block,
+            animation_state,
         );
 
         // if we're not at the edge of the screen, draw a right border
