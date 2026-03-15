@@ -1885,6 +1885,36 @@ impl Component for EditorView {
             self.render_view(cx.editor, doc, view, area, surface, is_focused);
         }
 
+        // Render minimap if enabled
+        if let Some(minimap_area) = minimap_area {
+            let (view, _) = cx.editor.tree.views().find(|(_, focused)| *focused).unwrap();
+            let view_id = view.id;
+            let doc_id = view.doc;
+            let inner_height = view.inner_height();
+            let doc = cx.editor.document(doc_id).unwrap();
+            let view_offset = doc.view_offset(view_id);
+            let first_visible_line = doc.text().char_to_line(view_offset.anchor);
+            let text = doc.text().clone();
+            let doc_id_val = doc.id();
+            let theme = &cx.editor.theme;
+            let text_style = theme.get("ui.text.subdued");
+            let viewport_style = theme.get("ui.selection");
+            let separator_style = theme.get("ui.virtual.indent-guide");
+            let cache = &mut cx.editor.tree.get_mut(view_id).minimap_cache;
+            super::minimap::render(
+                &text,
+                doc_id_val,
+                first_visible_line,
+                inner_height,
+                text_style,
+                viewport_style,
+                separator_style,
+                cache,
+                minimap_area,
+                surface,
+            );
+        }
+
         if config.auto_info {
             if let Some(mut info) = cx.editor.autoinfo.take() {
                 info.render(area, surface, cx);
