@@ -35,6 +35,86 @@ use std::{mem::take, num::NonZeroUsize, ops, path::PathBuf, rc::Rc};
 
 use tui::{buffer::Buffer as Surface, text::Span};
 
+use helix_core::RopeSlice;
+
+/// Find the indent scope around the cursor line based purely on indentation.
+/// Returns (start_line, end_line, indent_col) where the guide should be drawn.
+fn find_indent_scope(text: RopeSlice, cursor_line: usize) -> Option<(usize, usize, usize)> {
+    let total_lines = text.len_lines();
+    if cursor_line >= total_lines {
+        return None;
+    }
+
+    // Get indent of cursor line (number of leading whitespace chars)
+    let cursor_indent = line_indent(text, cursor_line);
+    if cursor_indent == 0 {
+        return None;
+    }
+
+    // Scan upward to find scope start (first line with less indent)
+    let mut start_line = cursor_line;
+    for line_idx in (0..cursor_line).rev() {
+        let indent = line_indent(text, line_idx);
+        // Skip blank lines
+        if indent == usize::MAX {
+            continue;
+        }
+        if indent < cursor_indent {
+            break;
+        }
+        start_line = line_idx;
+    }
+
+    // Scan downward to find scope end (first line with less indent)
+    let mut end_line = cursor_line;
+    for line_idx in (cursor_line + 1)..total_lines {
+        let indent = line_indent(text, line_idx);
+        // Skip blank lines
+        if indent == usize::MAX {
+            continue;
+        }
+        if indent < cursor_indent {
+            break;
+        }
+        end_line = line_idx;
+    }
+
+    // Need at least 2 lines for a scope
+    if start_line == end_line {
+        return None;
+    }
+
+    // The guide should be drawn at the previous indent boundary
+    // (one level less than cursor line's indent) so it's visible in whitespace
+    // For this, we round down to the previous indent boundary
+    // e.g., if cursor_indent is 7 and indent_width is 4, guide is at column 4
+    // e.g., if cursor_indent is 4 and indent_width is 4, guide is at column 0
+    // We'll compute this in draw_indent_guides using indent_width
+    Some((start_line, end_line, cursor_indent))
+}
+
+/// Get the indentation level (column) of a line. Returns usize::MAX for blank lines.
+fn line_indent(text: RopeSlice, line_idx: usize) -> usize {
+    let line = text.line(line_idx);
+    let mut indent = 0;
+    let mut has_content = false;
+    for c in line.chars() {
+        if c == '\n' || c == '\r' {
+            break;
+        }
+        if !c.is_whitespace() {
+            has_content = true;
+            break;
+        }
+        indent += 1;
+    }
+    if has_content {
+        indent
+    } else {
+        usize::MAX // blank line
+    }
+}
+
 pub struct EditorView {
     pub keymaps: Keymaps,
     on_next_key: Option<(OnKeyCallback, OnKeyCallbackKind)>,
@@ -205,6 +285,18 @@ impl EditorView {
             inline_diagnostic_config,
             config.end_of_line_diagnostics,
         ));
+
+        // Compute current indent scope for indent guides if current_line mode is enabled
+        let current_line_mode =
+            is_focused && config.indent_guides.render && config.indent_guides.current_line;
+        let current_block = if current_line_mode {
+            let text = doc.text().slice(..);
+            let cursor_line = text.char_to_line(primary_cursor);
+            find_indent_scope(text, cursor_line)
+        } else {
+            None
+        };
+
         render_document(
             surface,
             inner,
@@ -215,6 +307,8 @@ impl EditorView {
             overlays,
             theme,
             decorations,
+            current_line_mode,
+            current_block,
         );
 
         // if we're not at the edge of the screen, draw a right border
