@@ -1028,6 +1028,7 @@ impl<T: 'static + Send + Sync, D: 'static + Send + Sync> Picker<T, D> {
                 decorations,
                 false, // current_line_mode - not needed in picker preview
                 None,  // current_block - not needed in picker preview
+                None,  // animation_state - not needed in picker preview
             );
         }
     }
