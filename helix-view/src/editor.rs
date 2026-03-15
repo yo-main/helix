@@ -1110,6 +1110,14 @@ pub struct IndentGuidesConfig {
     pub character: char,
     pub skip_levels: u8,
     pub current_line: bool,
+    /// Enable animation when the indent scope changes (mini-indentscope style)
+    pub animation: bool,
+    /// Animation duration in milliseconds (default: 150ms)
+    #[serde(
+        deserialize_with = "deserialize_duration_millis",
+        serialize_with = "serialize_duration_millis"
+    )]
+    pub animation_duration: Duration,
 }
 
 impl Default for IndentGuidesConfig {
@@ -1119,6 +1127,8 @@ impl Default for IndentGuidesConfig {
             render: false,
             character: '│',
             current_line: false,
+            animation: false,
+            animation_duration: Duration::from_millis(150),
         }
     }
 }
