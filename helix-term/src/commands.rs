@@ -617,6 +617,7 @@ impl MappableCommand {
         goto_prev_tabstop, "Goto next snippet placeholder",
         rotate_selections_first, "Make the first selection your primary one",
         rotate_selections_last, "Make the last selection your primary one",
+        toggle_file_tree, "Toggle file tree panel",
     );
 }
 
@@ -7221,5 +7222,22 @@ fn lsp_or_syntax_workspace_symbol_picker(cx: &mut Context) {
         lsp::workspace_symbol_picker(cx);
     } else {
         syntax_workspace_symbol_picker(cx);
+    }
+}
+
+fn toggle_file_tree(cx: &mut Context) {
+    use helix_view::editor::ConfigEvent;
+
+    let mut config = (*cx.editor.config()).clone();
+    config.file_tree.enable = !config.file_tree.enable;
+
+    if let Err(err) = cx
+        .editor
+        .config_events
+        .0
+        .send(ConfigEvent::Update(Box::new(config)))
+    {
+        cx.editor
+            .set_error(format!("Failed to toggle file tree: {}", err));
     }
 }

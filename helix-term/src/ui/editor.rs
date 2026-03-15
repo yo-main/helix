@@ -235,10 +235,13 @@ impl EditorView {
             Self::render_diagnostics(doc, view, inner, surface, theme);
         }
 
-        let statusline_area = view
-            .area
-            .clip_top(view.area.height.saturating_sub(1))
-            .clip_bottom(1); // -1 from bottom to remove commandline
+        // Use viewport.x to make statusline span full width (including under tree panel)
+        let statusline_area = Rect::new(
+            viewport.x,
+            view.area.y + view.area.height.saturating_sub(1),
+            viewport.width,
+            1,
+        );
 
         let mut context =
             statusline::RenderContext::new(editor, doc, view, is_focused, &self.spinners);
@@ -1633,11 +1636,94 @@ impl Component for EditorView {
             editor_area = editor_area.clip_top(1);
         }
 
+        // Reserve space for file tree on the left
+        // Only show the tree if enabled AND there are buffers from the current project
+        let file_tree_width = if config.file_tree.enable {
+            let cwd = helix_stdx::env::current_working_dir();
+            let has_project_files = cx.editor.documents().any(|doc| {
+                doc.path()
+                    .and_then(|p| p.canonicalize().ok())
+                    .map(|p| p.starts_with(&cwd))
+                    .unwrap_or(false)
+            });
+            if has_project_files {
+                config.file_tree.width.min(editor_area.width.saturating_sub(10))
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
+        // Tree area extends from top to above the view statusline (includes bufferline row)
+        // Subtract 2: one for command line, one for view statusline
+        let tree_area = if file_tree_width > 0 {
+            let tree_area = Rect::new(
+                area.x,
+                area.y,
+                file_tree_width,
+                area.height.saturating_sub(2),
+            );
+            // Clip editor area to exclude file tree and separator
+            editor_area = Rect::new(
+                editor_area.x + file_tree_width + 1,
+                editor_area.y,
+                editor_area.width.saturating_sub(file_tree_width + 1),
+                editor_area.height,
+            );
+            Some(tree_area)
+        } else {
+            None
+        };
+
+        // Reserve space for minimap on the right
+        let minimap_width = if config.minimap.enable {
+            config.minimap.width.min(editor_area.width.saturating_sub(20))
+        } else {
+            0
+        };
+
+        let minimap_area = if minimap_width > 0 {
+            // Minimap extends from top to above the statusline (like tree)
+            let minimap_area = Rect::new(
+                area.x + area.width - minimap_width,
+                area.y,
+                minimap_width,
+                area.height.saturating_sub(2),
+            );
+            // Clip editor area to exclude minimap and separator
+            editor_area = Rect::new(
+                editor_area.x,
+                editor_area.y,
+                editor_area.width.saturating_sub(minimap_width + 1),
+                editor_area.height,
+            );
+            Some(minimap_area)
+        } else {
+            None
+        };
+
         // if the terminal size suddenly changed, we need to trigger a resize
         cx.editor.resize(editor_area);
 
         if use_bufferline {
-            Self::render_bufferline(cx.editor, area.with_height(1), surface);
+            // Clip bufferline to start after the tree panel if present
+            let bufferline_area = if file_tree_width > 0 {
+                Rect::new(
+                    area.x + file_tree_width + 1,
+                    area.y,
+                    area.width.saturating_sub(file_tree_width + 1),
+                    1,
+                )
+            } else {
+                area.with_height(1)
+            };
+            Self::render_bufferline(cx.editor, bufferline_area, surface);
+        }
+
+        // Render file tree if enabled
+        if let Some(tree_area) = tree_area {
+            super::file_tree::render(cx.editor, tree_area, surface);
         }
 
         for (view, is_focused) in cx.editor.tree.views() {
