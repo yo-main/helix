@@ -1026,6 +1026,8 @@ impl<T: 'static + Send + Sync, D: 'static + Send + Sync> Picker<T, D> {
                 overlay_highlights,
                 &cx.editor.theme,
                 decorations,
+                false, // current_line_mode - not needed in picker preview
+                None,  // current_block - not needed in picker preview
             );
         }
     }
