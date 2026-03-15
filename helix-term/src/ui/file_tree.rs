@@ -1,4 +1,4 @@
-use helix_view::{graphics::Rect, Editor};
+use helix_view::{graphics::{Modifier, Rect}, Editor};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use tui::buffer::Buffer as Surface;
@@ -128,6 +128,43 @@ impl FileTree {
 
         FileTree { entries }
     }
+
+    /// Get list of file paths in tree display order (for navigation).
+    /// Order matches build() exactly: groups sorted by full parent path, files sorted within groups.
+    pub fn file_paths_in_order(root: &Path, open_files: &[&Path]) -> Vec<PathBuf> {
+        let root = match root.canonicalize() {
+            Ok(p) => p,
+            Err(_) => root.to_path_buf(),
+        };
+
+        let mut groups: BTreeMap<String, Vec<PathBuf>> = BTreeMap::new();
+
+        for &file in open_files {
+            let file_canonical = match file.canonicalize() {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
+
+            let relative = match file_canonical.strip_prefix(&root) {
+                Ok(rel) => rel.to_path_buf(),
+                Err(_) => continue,
+            };
+
+            let parent_key = match relative.parent() {
+                Some(p) if p.components().count() > 0 => p.to_string_lossy().to_string(),
+                _ => String::new(),
+            };
+
+            groups.entry(parent_key).or_default().push(file_canonical);
+        }
+
+        for files in groups.values_mut() {
+            files.sort();
+        }
+
+        groups.into_values().flatten().collect()
+    }
+>>>>>>> conflict 1 of 1 ends
 }
 
 /// Compute display names for directory groups: leaf folder name when unambiguous,

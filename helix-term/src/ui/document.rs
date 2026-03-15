@@ -40,6 +40,8 @@ pub fn render_document(
     decorations: DecorationManager,
     current_line_mode: bool,
     current_block: Option<(usize, usize, usize)>,
+    // Animation state: (visible_radius, cursor_line) or None if disabled
+    animation_state: Option<(usize, usize)>,
 ) {
     let mut renderer = TextRenderer::new(
         surface,
@@ -50,6 +52,7 @@ pub fn render_document(
     );
     renderer.current_line_mode = current_line_mode;
     renderer.current_block = current_block;
+    renderer.animation_state = animation_state;
     render_text(
         &mut renderer,
         doc.text().slice(..),
@@ -191,6 +194,7 @@ pub struct TextRenderer<'a> {
     pub virtual_tab: String,
     pub indent_width: u16,
     pub starting_indent: usize,
+    pub skip_levels: usize,
     pub draw_indent_guides: bool,
     pub viewport: Rect,
     pub offset: Position,
@@ -199,6 +203,8 @@ pub struct TextRenderer<'a> {
     /// If set, draw a single indent guide at the block's indent column for lines within the range.
     /// Format: (start_line, end_line, indent_level)
     pub current_block: Option<(usize, usize, usize)>,
+    /// Animation state: (visible_radius, cursor_line) or None if disabled
+    pub animation_state: Option<(usize, usize)>,
 }
 
 pub struct GraphemeStyle {
@@ -266,6 +272,7 @@ impl<'a> TextRenderer<'a> {
             virtual_tab,
             whitespace_style: theme.get("ui.virtual.whitespace"),
             indent_width,
+            skip_levels: editor_config.indent_guides.skip_levels as usize,
             starting_indent: offset.col / indent_width as usize
                 + !offset.col.is_multiple_of(indent_width as usize) as usize
                 + editor_config.indent_guides.skip_levels as usize,
@@ -280,6 +287,7 @@ impl<'a> TextRenderer<'a> {
             offset,
             current_line_mode: false,
             current_block: None,
+            animation_state: None,
         }
     }
     /// Draws a single `grapheme` at the current render position with a specified `style`.
@@ -423,12 +431,32 @@ impl<'a> TextRenderer<'a> {
                     return;
                 }
 
+                // Handle animation: progressively draw from cursor outward
+                if let Some((visible_radius, cursor_line)) = self.animation_state {
+                    // Calculate distance from cursor
+                    let distance_from_cursor = if doc_line >= cursor_line {
+                        doc_line - cursor_line
+                    } else {
+                        cursor_line - doc_line
+                    };
+
+                    // Don't draw this line if it's too far from cursor
+                    if distance_from_cursor > visible_radius {
+                        return;
+                    }
+                }
+
                 // The guide is drawn at the previous indent boundary so it appears in whitespace
                 // e.g., if scope_indent=4 and indent_width=4, guide at column 0
                 // e.g., if scope_indent=8 and indent_width=4, guide at column 4
-                let guide_col = (scope_indent / self.indent_width as usize)
-                    .saturating_sub(1)
-                    * self.indent_width as usize;
+                let guide_indent_level = (scope_indent / self.indent_width as usize)
+                    .saturating_sub(1);
+                let guide_col = guide_indent_level * self.indent_width as usize;
+
+                // Check if this indent level should be skipped (respecting skip_levels)
+                if guide_indent_level < self.skip_levels {
+                    return;
+                }
 
                 // Only draw if the guide is within the line's indent area and visible
                 if guide_col < indent_level
