@@ -38,6 +38,8 @@ pub fn render_document(
     overlay_highlights: Vec<syntax::OverlayHighlights>,
     theme: &Theme,
     decorations: DecorationManager,
+    current_line_mode: bool,
+    current_block: Option<(usize, usize, usize)>,
 ) {
     let mut renderer = TextRenderer::new(
         surface,
@@ -46,6 +48,8 @@ pub fn render_document(
         Position::new(offset.vertical_offset, offset.horizontal_offset),
         viewport,
     );
+    renderer.current_line_mode = current_line_mode;
+    renderer.current_block = current_block;
     render_text(
         &mut renderer,
         doc.text().slice(..),
@@ -119,7 +123,7 @@ pub fn render_text(
             // in that case we don't need to draw indent guides/virtual text
             if last_line_pos.doc_line != usize::MAX {
                 // draw indent guides for the last line
-                renderer.draw_indent_guides(last_line_indent_level, last_line_pos.visual_line);
+                renderer.draw_indent_guides(last_line_indent_level, last_line_pos.visual_line, last_line_pos.doc_line);
                 is_in_indent_area = true;
                 decorations.render_virtual_lines(renderer, last_line_pos, last_line_end)
             }
@@ -168,7 +172,7 @@ pub fn render_text(
         last_line_end = grapheme.visual_pos.col + grapheme_width;
     }
 
-    renderer.draw_indent_guides(last_line_indent_level, last_line_pos.visual_line);
+    renderer.draw_indent_guides(last_line_indent_level, last_line_pos.visual_line, last_line_pos.doc_line);
     decorations.render_virtual_lines(renderer, last_line_pos, last_line_end)
 }
 
@@ -190,6 +194,11 @@ pub struct TextRenderer<'a> {
     pub draw_indent_guides: bool,
     pub viewport: Rect,
     pub offset: Position,
+    /// If true, we're in "current line" mode - only draw scope guide, no normal guides
+    pub current_line_mode: bool,
+    /// If set, draw a single indent guide at the block's indent column for lines within the range.
+    /// Format: (start_line, end_line, indent_level)
+    pub current_block: Option<(usize, usize, usize)>,
 }
 
 pub struct GraphemeStyle {
@@ -269,6 +278,8 @@ impl<'a> TextRenderer<'a> {
             draw_indent_guides: editor_config.indent_guides.render,
             viewport,
             offset,
+            current_line_mode: false,
+            current_block: None,
         }
     }
     /// Draws a single `grapheme` at the current render position with a specified `style`.
@@ -398,11 +409,42 @@ impl<'a> TextRenderer<'a> {
     /// Overlay indentation guides ontop of a rendered line
     /// The indentation level is computed in `draw_lines`.
     /// Therefore this function must always be called afterwards.
-    pub fn draw_indent_guides(&mut self, indent_level: usize, mut row: u16) {
+    pub fn draw_indent_guides(&mut self, indent_level: usize, mut row: u16, doc_line: usize) {
         if !self.draw_indent_guides || self.offset.row > row as usize {
             return;
         }
+
         row -= self.offset.row as u16;
+
+        // In current_line mode, only draw the scope guide (or nothing if no scope)
+        if self.current_line_mode {
+            if let Some((start_line, end_line, scope_indent)) = self.current_block {
+                if doc_line < start_line || doc_line > end_line {
+                    return;
+                }
+
+                // The guide is drawn at the previous indent boundary so it appears in whitespace
+                // e.g., if scope_indent=4 and indent_width=4, guide at column 0
+                // e.g., if scope_indent=8 and indent_width=4, guide at column 4
+                let guide_col = (scope_indent / self.indent_width as usize)
+                    .saturating_sub(1)
+                    * self.indent_width as usize;
+
+                // Only draw if the guide is within the line's indent area and visible
+                if guide_col < indent_level
+                    && guide_col >= self.offset.col
+                    && guide_col < self.offset.col + self.viewport.width as usize
+                {
+                    let x = (self.viewport.x as usize + guide_col - self.offset.col) as u16;
+                    let y = self.viewport.y + row;
+                    debug_assert!(self.surface.in_bounds(x, y));
+                    self.surface
+                        .set_string(x, y, &self.indent_guide_char, self.indent_guide_style);
+                }
+            }
+            // In current_line mode, never fall through to normal guides
+            return;
+        }
 
         // Don't draw indent guides outside of view
         let end_indent = min(
