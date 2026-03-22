@@ -618,6 +618,8 @@ impl MappableCommand {
         rotate_selections_first, "Make the first selection your primary one",
         rotate_selections_last, "Make the last selection your primary one",
         toggle_file_tree, "Toggle file tree panel",
+        next_tree_buffer, "Goto next buffer in tree order",
+        prev_tree_buffer, "Goto previous buffer in tree order",
     );
 }
 
@@ -7239,5 +7241,77 @@ fn toggle_file_tree(cx: &mut Context) {
     {
         cx.editor
             .set_error(format!("Failed to toggle file tree: {}", err));
+    }
+}
+
+fn next_tree_buffer(cx: &mut Context) {
+    goto_tree_buffer(cx.editor, Direction::Forward, cx.count());
+}
+
+fn prev_tree_buffer(cx: &mut Context) {
+    goto_tree_buffer(cx.editor, Direction::Backward, cx.count());
+}
+
+fn goto_tree_buffer(editor: &mut Editor, direction: Direction, count: usize) {
+    use crate::ui::file_tree::FileTree;
+
+    // Get current document's path
+    let current_file = editor
+        .tree
+        .views()
+        .find(|(view, _)| view.id == editor.tree.focus)
+        .and_then(|(view, _)| editor.document(view.doc))
+        .and_then(|doc| doc.path())
+        .and_then(|p| p.canonicalize().ok());
+
+    // Get all open document paths
+    let open_files: Vec<&Path> = editor
+        .documents()
+        .filter_map(|doc| doc.path())
+        .collect();
+
+    if open_files.is_empty() {
+        return;
+    }
+
+    // Use workspace root or current working directory
+    let root = helix_stdx::env::current_working_dir();
+
+    // Get file paths in tree order
+    let tree_paths = FileTree::file_paths_in_order(&root, &open_files);
+
+    if tree_paths.is_empty() {
+        return;
+    }
+
+    // Find current position in tree order
+    let current_idx = current_file
+        .as_ref()
+        .and_then(|current| tree_paths.iter().position(|p| p == current));
+
+    // Calculate target index with wrapping
+    let target_idx = match (current_idx, direction) {
+        (Some(idx), Direction::Forward) => (idx + count) % tree_paths.len(),
+        (Some(idx), Direction::Backward) => {
+            (idx + tree_paths.len() - (count % tree_paths.len())) % tree_paths.len()
+        }
+        (None, Direction::Forward) => 0,
+        (None, Direction::Backward) => tree_paths.len().saturating_sub(1),
+    };
+
+    // Find the document ID for the target path
+    let target_path = &tree_paths[target_idx];
+    let target_doc_id = editor
+        .documents()
+        .find(|doc| {
+            doc.path()
+                .and_then(|p| p.canonicalize().ok())
+                .map(|p| &p == target_path)
+                .unwrap_or(false)
+        })
+        .map(|doc| doc.id());
+
+    if let Some(doc_id) = target_doc_id {
+        editor.switch(doc_id, Action::Replace);
     }
 }
