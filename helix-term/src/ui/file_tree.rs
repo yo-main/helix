@@ -164,7 +164,6 @@ impl FileTree {
 
         groups.into_values().flatten().collect()
     }
->>>>>>> conflict 1 of 1 ends
 }
 
 /// Compute display names for directory groups: leaf folder name when unambiguous,
