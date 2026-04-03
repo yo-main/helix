@@ -83,6 +83,13 @@ fn lsp_location_to_location(
     })
 }
 
+fn dedup_locations(locations: &mut Vec<Location>) {
+    locations.sort_by(|a, b| {
+        (&a.uri, a.range.start, a.range.end).cmp(&(&b.uri, b.range.start, b.range.end))
+    });
+    locations.dedup_by(|a, b| a.uri == b.uri && a.range.start.line == b.range.start.line);
+}
+
 struct SymbolInformationItem {
     location: Location,
     symbol: lsp::SymbolInformation,
@@ -933,6 +940,8 @@ where
                 Err(err) => log::error!("Error requesting locations: {err}"),
             }
         }
+        dedup_locations(&mut locations);
+
         let call = move |editor: &mut Editor, compositor: &mut Compositor| {
             if locations.is_empty() {
                 editor.set_error(match feature {
@@ -1016,6 +1025,8 @@ pub fn goto_reference(cx: &mut Context) {
                 Err(err) => log::error!("Error requesting references: {err}"),
             }
         }
+        dedup_locations(&mut locations);
+
         let call = move |editor: &mut Editor, compositor: &mut Compositor| {
             if locations.is_empty() {
                 editor.set_error("No references found.");
