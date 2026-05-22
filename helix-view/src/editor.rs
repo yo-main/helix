@@ -266,6 +266,42 @@ impl Default for FileExplorerConfig {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", default, deny_unknown_fields)]
+pub struct FileTreeConfig {
+    /// Whether to enable the file tree panel. Defaults to false.
+    pub enable: bool,
+    /// Width of the file tree panel in columns. Defaults to 20.
+    pub width: u16,
+}
+
+impl Default for FileTreeConfig {
+    fn default() -> Self {
+        Self {
+            enable: false,
+            width: 20,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", default, deny_unknown_fields)]
+pub struct MinimapConfig {
+    /// Whether to enable the minimap. Defaults to false.
+    pub enable: bool,
+    /// Width of the minimap in columns. Defaults to 10.
+    pub width: u16,
+}
+
+impl Default for MinimapConfig {
+    fn default() -> Self {
+        Self {
+            enable: false,
+            width: 10,
+        }
+    }
+}
+
 fn serialize_alphabet<S>(alphabet: &[char], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -366,6 +402,8 @@ pub struct Config {
     pub auto_info: bool,
     pub file_picker: FilePickerConfig,
     pub file_explorer: FileExplorerConfig,
+    pub file_tree: FileTreeConfig,
+    pub minimap: MinimapConfig,
     /// Configuration of the statusline elements
     pub statusline: StatusLineConfig,
     /// Shape for cursor in each mode
@@ -1071,6 +1109,15 @@ pub struct IndentGuidesConfig {
     pub render: bool,
     pub character: char,
     pub skip_levels: u8,
+    pub current_line: bool,
+    /// Enable animation when the indent scope changes (mini-indentscope style)
+    pub animation: bool,
+    /// Animation duration in milliseconds (default: 150ms)
+    #[serde(
+        deserialize_with = "deserialize_duration_millis",
+        serialize_with = "serialize_duration_millis"
+    )]
+    pub animation_duration: Duration,
 }
 
 impl Default for IndentGuidesConfig {
@@ -1079,6 +1126,9 @@ impl Default for IndentGuidesConfig {
             skip_levels: 0,
             render: false,
             character: '│',
+            current_line: false,
+            animation: false,
+            animation_duration: Duration::from_millis(150),
         }
     }
 }
@@ -1179,6 +1229,8 @@ impl Default for Config {
             auto_info: true,
             file_picker: FilePickerConfig::default(),
             file_explorer: FileExplorerConfig::default(),
+            file_tree: FileTreeConfig::default(),
+            minimap: MinimapConfig::default(),
             statusline: StatusLineConfig::default(),
             cursor_shape: CursorShapeConfig::default(),
             true_color: false,

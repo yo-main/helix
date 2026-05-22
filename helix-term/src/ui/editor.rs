@@ -31,9 +31,110 @@ use helix_view::{
     keyboard::{KeyCode, KeyModifiers},
     Document, Editor, Theme, View,
 };
-use std::{mem::take, num::NonZeroUsize, ops, path::PathBuf, rc::Rc};
+use std::{mem::take, num::NonZeroUsize, ops, path::PathBuf, rc::Rc, time::Instant};
 
 use tui::{buffer::Buffer as Surface, text::Span};
+
+use helix_core::RopeSlice;
+
+/// Find the indent scope around the cursor line based purely on indentation.
+/// Returns (start_line, end_line, indent_col) where the guide should be drawn.
+fn find_indent_scope(text: RopeSlice, cursor_line: usize) -> Option<(usize, usize, usize)> {
+    let total_lines = text.len_lines();
+    if cursor_line >= total_lines {
+        return None;
+    }
+
+    // Get indent of cursor line (number of leading whitespace chars)
+    let cursor_indent = line_indent(text, cursor_line);
+    if cursor_indent == 0 {
+        return None;
+    }
+
+    // Scan upward to find scope start (first line with less indent)
+    let mut start_line = cursor_line;
+    for line_idx in (0..cursor_line).rev() {
+        let indent = line_indent(text, line_idx);
+        // Skip blank lines
+        if indent == usize::MAX {
+            continue;
+        }
+        if indent < cursor_indent {
+            break;
+        }
+        start_line = line_idx;
+    }
+
+    // Scan downward to find scope end (first line with less indent)
+    let mut end_line = cursor_line;
+    for line_idx in (cursor_line + 1)..total_lines {
+        let indent = line_indent(text, line_idx);
+        // Skip blank lines
+        if indent == usize::MAX {
+            continue;
+        }
+        if indent < cursor_indent {
+            break;
+        }
+        end_line = line_idx;
+    }
+
+    // Need at least 2 lines for a scope
+    if start_line == end_line {
+        return None;
+    }
+
+    // The guide should be drawn at the previous indent boundary
+    // (one level less than cursor line's indent) so it's visible in whitespace
+    // For this, we round down to the previous indent boundary
+    // e.g., if cursor_indent is 7 and indent_width is 4, guide is at column 4
+    // e.g., if cursor_indent is 4 and indent_width is 4, guide is at column 0
+    // We'll compute this in draw_indent_guides using indent_width
+    Some((start_line, end_line, cursor_indent))
+}
+
+/// Get the indentation level (column) of a line. Returns usize::MAX for blank lines.
+fn line_indent(text: RopeSlice, line_idx: usize) -> usize {
+    let line = text.line(line_idx);
+    let mut indent = 0;
+    let mut has_content = false;
+    for c in line.chars() {
+        if c == '\n' || c == '\r' {
+            break;
+        }
+        if !c.is_whitespace() {
+            has_content = true;
+            break;
+        }
+        indent += 1;
+    }
+    if has_content {
+        indent
+    } else {
+        usize::MAX // blank line
+    }
+}
+
+/// Tracks the animation state for the indent scope guide.
+#[derive(Debug, Clone)]
+struct ScopeAnimationState {
+    /// The target scope we're animating towards: (start_line, end_line, indent_level)
+    target_scope: Option<(usize, usize, usize)>,
+    /// When the animation started
+    animation_start: Instant,
+    /// The previous scope we're animating from: (start_line, end_line, indent_level)
+    previous_scope: Option<(usize, usize, usize)>,
+}
+
+impl Default for ScopeAnimationState {
+    fn default() -> Self {
+        Self {
+            target_scope: None,
+            animation_start: Instant::now(),
+            previous_scope: None,
+        }
+    }
+}
 
 pub struct EditorView {
     pub keymaps: Keymaps,
@@ -44,6 +145,8 @@ pub struct EditorView {
     spinners: ProgressSpinners,
     /// Tracks if the terminal window is focused by reaction to terminal focus events
     terminal_focused: bool,
+    /// Animation state for indent scope guides
+    scope_animation: ScopeAnimationState,
 }
 
 #[derive(Debug, Clone)]
@@ -67,6 +170,7 @@ impl EditorView {
             completion: None,
             spinners: ProgressSpinners::default(),
             terminal_focused: true,
+            scope_animation: ScopeAnimationState::default(),
         }
     }
 
@@ -75,7 +179,7 @@ impl EditorView {
     }
 
     pub fn render_view(
-        &self,
+        &mut self,
         editor: &Editor,
         doc: &Document,
         view: &View,
@@ -205,6 +309,53 @@ impl EditorView {
             inline_diagnostic_config,
             config.end_of_line_diagnostics,
         ));
+
+        // Compute current indent scope for indent guides if current_line mode is enabled
+        let current_line_mode =
+            is_focused && config.indent_guides.render && config.indent_guides.current_line;
+        let animation_enabled = current_line_mode && config.indent_guides.animation;
+        let animation_duration = config.indent_guides.animation_duration;
+
+        let text = doc.text().slice(..);
+        let cursor_line = text.char_to_line(primary_cursor);
+
+        let new_scope = if current_line_mode {
+            find_indent_scope(text, cursor_line)
+        } else {
+            None
+        };
+
+        // Calculate animation state
+        let (current_block, animation_state) = if animation_enabled {
+            // Check if scope changed
+            if new_scope != self.scope_animation.target_scope {
+                self.scope_animation.previous_scope = self.scope_animation.target_scope;
+                self.scope_animation.target_scope = new_scope;
+                self.scope_animation.animation_start = Instant::now();
+            }
+
+            let elapsed_ms = self.scope_animation.animation_start.elapsed().as_millis() as f64;
+            // Lines per millisecond - controls animation speed
+            // animation_duration is used as "time to animate 10 lines from each end"
+            let lines_per_ms = if animation_duration.is_zero() {
+                f64::INFINITY
+            } else {
+                10.0 / animation_duration.as_millis() as f64
+            };
+
+            let visible_lines = (elapsed_ms * lines_per_ms) as usize;
+
+            // Request redraw while animation might still be in progress
+            // (we don't know scope size here, so keep redrawing for a reasonable time)
+            if elapsed_ms < animation_duration.as_millis() as f64 * 3.0 {
+                helix_event::request_redraw();
+            }
+
+            (new_scope, Some((visible_lines, cursor_line)))
+        } else {
+            (new_scope, None)
+        };
+
         render_document(
             surface,
             inner,
@@ -215,6 +366,9 @@ impl EditorView {
             overlays,
             theme,
             decorations,
+            current_line_mode,
+            current_block,
+            animation_state,
         );
 
         // if we're not at the edge of the screen, draw a right border
@@ -235,10 +389,13 @@ impl EditorView {
             Self::render_diagnostics(doc, view, inner, surface, theme);
         }
 
-        let statusline_area = view
-            .area
-            .clip_top(view.area.height.saturating_sub(1))
-            .clip_bottom(1); // -1 from bottom to remove commandline
+        // Use viewport.x to make statusline span full width (including under tree panel)
+        let statusline_area = Rect::new(
+            viewport.x,
+            view.area.y + view.area.height.saturating_sub(1),
+            viewport.width,
+            1,
+        );
 
         let mut context =
             statusline::RenderContext::new(editor, doc, view, is_focused, &self.spinners);
@@ -1633,16 +1790,129 @@ impl Component for EditorView {
             editor_area = editor_area.clip_top(1);
         }
 
+        // Reserve space for file tree on the left
+        // Only show the tree if enabled AND there are buffers from the current project
+        let file_tree_width = if config.file_tree.enable {
+            let cwd = helix_stdx::env::current_working_dir();
+            let has_project_files = cx.editor.documents().any(|doc| {
+                doc.path()
+                    .and_then(|p| p.canonicalize().ok())
+                    .map(|p| p.starts_with(&cwd))
+                    .unwrap_or(false)
+            });
+            if has_project_files {
+                config.file_tree.width.min(editor_area.width.saturating_sub(10))
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
+        // Tree area extends from top to above the view statusline (includes bufferline row)
+        // Subtract 2: one for command line, one for view statusline
+        let tree_area = if file_tree_width > 0 {
+            let tree_area = Rect::new(
+                area.x,
+                area.y,
+                file_tree_width,
+                area.height.saturating_sub(2),
+            );
+            // Clip editor area to exclude file tree and separator
+            editor_area = Rect::new(
+                editor_area.x + file_tree_width + 1,
+                editor_area.y,
+                editor_area.width.saturating_sub(file_tree_width + 1),
+                editor_area.height,
+            );
+            Some(tree_area)
+        } else {
+            None
+        };
+
+        // Reserve space for minimap on the right
+        let minimap_width = if config.minimap.enable {
+            config.minimap.width.min(editor_area.width.saturating_sub(20))
+        } else {
+            0
+        };
+
+        let minimap_area = if minimap_width > 0 {
+            // Minimap extends from top to above the statusline (like tree)
+            let minimap_area = Rect::new(
+                area.x + area.width - minimap_width,
+                area.y,
+                minimap_width,
+                area.height.saturating_sub(2),
+            );
+            // Clip editor area to exclude minimap and separator
+            editor_area = Rect::new(
+                editor_area.x,
+                editor_area.y,
+                editor_area.width.saturating_sub(minimap_width + 1),
+                editor_area.height,
+            );
+            Some(minimap_area)
+        } else {
+            None
+        };
+
         // if the terminal size suddenly changed, we need to trigger a resize
         cx.editor.resize(editor_area);
 
         if use_bufferline {
-            Self::render_bufferline(cx.editor, area.with_height(1), surface);
+            // Clip bufferline to start after the tree panel if present
+            let bufferline_area = if file_tree_width > 0 {
+                Rect::new(
+                    area.x + file_tree_width + 1,
+                    area.y,
+                    area.width.saturating_sub(file_tree_width + 1),
+                    1,
+                )
+            } else {
+                area.with_height(1)
+            };
+            Self::render_bufferline(cx.editor, bufferline_area, surface);
+        }
+
+        // Render file tree if enabled
+        if let Some(tree_area) = tree_area {
+            super::file_tree::render(cx.editor, tree_area, surface);
         }
 
         for (view, is_focused) in cx.editor.tree.views() {
             let doc = cx.editor.document(view.doc).unwrap();
             self.render_view(cx.editor, doc, view, area, surface, is_focused);
+        }
+
+        // Render minimap if enabled
+        if let Some(minimap_area) = minimap_area {
+            let (view, _) = cx.editor.tree.views().find(|(_, focused)| *focused).unwrap();
+            let view_id = view.id;
+            let doc_id = view.doc;
+            let inner_height = view.inner_height();
+            let doc = cx.editor.document(doc_id).unwrap();
+            let view_offset = doc.view_offset(view_id);
+            let first_visible_line = doc.text().char_to_line(view_offset.anchor);
+            let text = doc.text().clone();
+            let doc_id_val = doc.id();
+            let theme = &cx.editor.theme;
+            let text_style = theme.get("ui.text.subdued");
+            let viewport_style = theme.get("ui.selection");
+            let separator_style = theme.get("ui.virtual.indent-guide");
+            let cache = &mut cx.editor.tree.get_mut(view_id).minimap_cache;
+            super::minimap::render(
+                &text,
+                doc_id_val,
+                first_visible_line,
+                inner_height,
+                text_style,
+                viewport_style,
+                separator_style,
+                cache,
+                minimap_area,
+                surface,
+            );
         }
 
         if config.auto_info {

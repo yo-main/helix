@@ -142,6 +142,20 @@ pub struct ViewPosition {
     pub vertical_offset: usize,
 }
 
+/// Cached minimap content to avoid recomputing on every scroll
+#[derive(Clone, Default)]
+pub struct MinimapCache {
+    /// Cached braille characters (width x height)
+    pub chars: Vec<Vec<char>>,
+    /// Document ID when cache was created
+    pub doc_id: Option<DocumentId>,
+    /// Number of lines when cache was created
+    pub line_count: usize,
+    /// Minimap dimensions when cache was created
+    pub width: usize,
+    pub height: usize,
+}
+
 #[derive(Clone)]
 pub struct View {
     pub id: ViewId,
@@ -172,6 +186,8 @@ pub struct View {
     // left to future work. For now we treat all views as focused and give them
     // each their own handler.
     pub diagnostics_handler: DiagnosticsHandler,
+    /// Cached minimap rendering to avoid recomputing on scroll
+    pub minimap_cache: MinimapCache,
 }
 
 impl fmt::Debug for View {
@@ -197,6 +213,7 @@ impl View {
             gutters,
             doc_revisions: HashMap::new(),
             diagnostics_handler: DiagnosticsHandler::new(),
+            minimap_cache: MinimapCache::default(),
         }
     }
 

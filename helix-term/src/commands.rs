@@ -46,7 +46,8 @@ use helix_core::{
 };
 use helix_view::{
     document::{FormatterError, Mode, SCRATCH_BUFFER_NAME},
-    editor::{Action, Motion},
+    editor::Motion,
+    editor::{Action, CloseError},
     expansion,
     info::Info,
     input::KeyEvent,
@@ -617,6 +618,9 @@ impl MappableCommand {
         goto_prev_tabstop, "Goto next snippet placeholder",
         rotate_selections_first, "Make the first selection your primary one",
         rotate_selections_last, "Make the last selection your primary one",
+        toggle_file_tree, "Toggle file tree panel",
+        next_tree_buffer, "Goto next buffer in tree order",
+        prev_tree_buffer, "Goto previous buffer in tree order",
     );
 }
 
@@ -3310,36 +3314,42 @@ impl PathStyleConfig {
 }
 
 fn buffer_picker(cx: &mut Context) {
-    let current = view!(cx.editor).doc;
-
-    struct BufferMeta<'a> {
+    struct BufferMeta {
         id: DocumentId,
-        path: Option<Cow<'a, Path>>,
+        path: Option<PathBuf>,
         is_modified: bool,
         is_current: bool,
         focused_at: std::time::Instant,
     }
 
-    let new_meta = |doc: &Document| BufferMeta {
-        id: doc.id(),
-        path: doc
-            .path()
-            .map(ToOwned::to_owned)
-            .map(helix_stdx::path::get_relative_path),
-        is_modified: doc.is_modified(),
-        is_current: doc.id() == current,
-        focused_at: doc.focused_at,
+    let get_items = |editor: &Editor| -> Vec<BufferMeta> {
+        let current = view!(editor).doc;
+
+        let new_meta = |doc: &Document| BufferMeta {
+            id: doc.id(),
+            path: doc
+                .path()
+                .map(ToOwned::to_owned)
+                .map(helix_stdx::path::get_relative_path)
+                .map(Cow::into_owned),
+            is_modified: doc.is_modified(),
+            is_current: doc.id() == current,
+            focused_at: doc.focused_at,
+        };
+
+        let mut items = editor
+            .documents
+            .values()
+            .map(new_meta)
+            .collect::<Vec<BufferMeta>>();
+
+        // mru
+        items.sort_unstable_by_key(|item| std::cmp::Reverse(item.focused_at));
+
+        items
     };
 
-    let mut items = cx
-        .editor
-        .documents
-        .values()
-        .map(new_meta)
-        .collect::<Vec<BufferMeta>>();
-
-    // mru
-    items.sort_unstable_by_key(|item| std::cmp::Reverse(item.focused_at));
+    let items = get_items(cx.editor);
 
     let columns = [
         PickerColumn::new("id", |meta: &BufferMeta, _| meta.id.to_string().into()),
@@ -3388,6 +3398,19 @@ fn buffer_picker(cx: &mut Context) {
             (cursor_line, cursor_line)
         });
         Some((meta.id.into(), lines))
+    })
+    .with_delete_item(move |editor, meta| {
+        if let Err(err) = editor.close_document(meta.id, false) {
+            editor.set_error(match err {
+                CloseError::BufferModified(s) => format!("Could not close modified buffer: {}", s),
+                CloseError::SaveError(s) => format!("Could not close buffer: {}", s),
+                CloseError::DoesNotExist => "Buffer does not exist".to_owned(),
+            });
+        } else {
+            editor.clear_status();
+        }
+
+        get_items(editor)
     });
     cx.push_layer(Box::new(overlaid(picker)));
 }
@@ -7209,5 +7232,94 @@ fn lsp_or_syntax_workspace_symbol_picker(cx: &mut Context) {
         lsp::workspace_symbol_picker(cx);
     } else {
         syntax_workspace_symbol_picker(cx);
+    }
+}
+
+fn toggle_file_tree(cx: &mut Context) {
+    use helix_view::editor::ConfigEvent;
+
+    let mut config = (*cx.editor.config()).clone();
+    config.file_tree.enable = !config.file_tree.enable;
+
+    if let Err(err) = cx
+        .editor
+        .config_events
+        .0
+        .send(ConfigEvent::Update(Box::new(config)))
+    {
+        cx.editor
+            .set_error(format!("Failed to toggle file tree: {}", err));
+    }
+}
+
+fn next_tree_buffer(cx: &mut Context) {
+    goto_tree_buffer(cx.editor, Direction::Forward, cx.count());
+}
+
+fn prev_tree_buffer(cx: &mut Context) {
+    goto_tree_buffer(cx.editor, Direction::Backward, cx.count());
+}
+
+fn goto_tree_buffer(editor: &mut Editor, direction: Direction, count: usize) {
+    use crate::ui::file_tree::FileTree;
+
+    // Get current document's path
+    let current_file = editor
+        .tree
+        .views()
+        .find(|(view, _)| view.id == editor.tree.focus)
+        .and_then(|(view, _)| editor.document(view.doc))
+        .and_then(|doc| doc.path())
+        .and_then(|p| p.canonicalize().ok());
+
+    // Get all open document paths
+    let open_files: Vec<&Path> = editor
+        .documents()
+        .filter_map(|doc| doc.path())
+        .collect();
+
+    if open_files.is_empty() {
+        return;
+    }
+
+    // Use workspace root or current working directory
+    let root = helix_stdx::env::current_working_dir();
+
+    // Get file paths in tree order
+    let tree_paths = FileTree::file_paths_in_order(&root, &open_files);
+
+    if tree_paths.is_empty() {
+        return;
+    }
+
+    // Find current position in tree order
+    let current_idx = current_file
+        .as_ref()
+        .and_then(|current| tree_paths.iter().position(|p| p == current));
+
+    // Calculate target index with wrapping
+    let target_idx = match (current_idx, direction) {
+        (Some(idx), Direction::Forward) => (idx + count) % tree_paths.len(),
+        (Some(idx), Direction::Backward) => {
+            (idx + tree_paths.len() - (count % tree_paths.len())) % tree_paths.len()
+        }
+        (None, Direction::Forward) => 0,
+        (None, Direction::Backward) => tree_paths.len().saturating_sub(1),
+    };
+
+    // Find the document ID for the target path
+    let target_path = &tree_paths[target_idx];
+    let target_doc_id = editor
+        .documents()
+        .find(|doc| {
+            doc.path()
+                .and_then(|p| p.canonicalize().ok())
+                .map(|p| &p == target_path)
+                .unwrap_or(false)
+        })
+        .map(|doc| doc.id());
+
+    if let Some(doc_id) = target_doc_id {
+        editor.switch(doc_id, Action::Replace);
     }
 }

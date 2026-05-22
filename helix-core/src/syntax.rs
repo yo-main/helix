@@ -586,6 +586,7 @@ impl Syntax {
         self.inner.descendant_for_byte_range(start, end)
     }
 
+
     pub fn walk(&self) -> TreeCursor<'_> {
         self.inner.walk()
     }
