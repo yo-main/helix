@@ -29,7 +29,7 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="custom-a1acbc99.css">
+        <link rel="stylesheet" href="custom-10faeed5.css">
 
 
         <!-- Provide site root and default themes to javascript -->
@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "colibri";
             const default_dark_theme = "colibri";
-            window.path_to_searchindex_js = "searchindex-1e3bba83.js";
+            window.path_to_searchindex_js = "searchindex-2fe1c435.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-c2fa7ea4.js"></script>
@@ -181,8 +181,17 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="helix"><a class="header" href="#helix">Helix</a></h1>
-<p>Docs for bleeding edge master can be found at
-<a href="https://docs.helix-editor.com/master">https://docs.helix-editor.com/master</a>.</p>
+<div class="version-tiles">
+  <a class="version-tile" href="/">
+    <strong>Stable</strong>
+    <span class="version-tile-sub">Documentation for the latest tagged release.</span>
+  </a>
+  <a class="version-tile" href="/master">
+    <strong>Latest (master)</strong>
+    <span class="version-tile-sub">Bleeding-edge docs built from the <code>master</code> branch.</span>
+  </a>
+</div>
+
 <p>See the <a href="#using-helix">usage</a> section for a quick overview of the editor, <a href="#keymap-1">keymap</a>
 section for all available keybindings and the <a href="#configuration-2">configuration</a> section
 for defining custom keybindings, setting themes, etc.
@@ -1975,6 +1984,7 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>bash</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td><code>bash-language-server</code></td></tr>
 <tr><td>basic</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td></tr>
 <tr><td>bass</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>bass</code></td></tr>
+<tr><td>batch</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td></td></tr>
 <tr><td>beancount</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>beancount-language-server</code></td></tr>
 <tr><td>bibtex</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>texlab</code></td></tr>
 <tr><td>bicep</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>bicep-langserver</code></td></tr>
@@ -1992,7 +2002,7 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>cel</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>chuck</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>circom</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>circom-lsp</code></td></tr>
-<tr><td>clarity</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>clarinet</code></td></tr>
+<tr><td>clarity</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td><code>clarinet</code></td></tr>
 <tr><td>clojure</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td><code>clojure-lsp</code></td></tr>
 <tr><td>cmake</td><td>✓</td><td>✓</td><td>✓</td><td></td><td>✓</td><td><code>neocmakelsp</code>, <code>cmake-language-server</code></td></tr>
 <tr><td>codeql</td><td>✓</td><td>✓</td><td></td><td></td><td></td><td><code>codeql</code></td></tr>
@@ -2050,10 +2060,10 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>freebasic</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td></tr>
 <tr><td>fsharp</td><td>✓</td><td></td><td></td><td></td><td>✓</td><td><code>fsautocomplete</code></td></tr>
 <tr><td>gas</td><td>✓</td><td>✓</td><td></td><td></td><td></td><td><code>asm-lsp</code></td></tr>
-<tr><td>gdscript</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td></td></tr>
+<tr><td>gdscript</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td><code>ncat</code></td></tr>
 <tr><td>gemini</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>gherkin</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><td>ghostty</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td>ghostty</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>ghostty-ls</code></td></tr>
 <tr><td>git-attributes</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>git-cliff-config</td><td>✓</td><td>✓</td><td></td><td></td><td>✓</td><td><code>taplo</code>, <code>tombi</code></td></tr>
 <tr><td>git-commit</td><td>✓</td><td>✓</td><td></td><td></td><td></td><td><code>commit-lsp</code></td></tr>
@@ -2100,7 +2110,7 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>idris</td><td></td><td></td><td></td><td></td><td></td><td><code>idris2-lsp</code></td></tr>
 <tr><td>iex</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>ini</td><td>✓</td><td></td><td></td><td>✓</td><td></td><td></td></tr>
-<tr><td>ink</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td>ink</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td><td></td></tr>
 <tr><td>inko</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td></tr>
 <tr><td>janet</td><td>✓</td><td></td><td>✓</td><td></td><td>✓</td><td></td></tr>
 <tr><td>java</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td><code>jdtls</code></td></tr>
@@ -2151,15 +2161,17 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>matlab</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td><td></td></tr>
 <tr><td>mermaid</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>meson</td><td>✓</td><td></td><td>✓</td><td></td><td></td><td><code>mesonlsp</code></td></tr>
+<tr><td>metamath</td><td>✓</td><td></td><td></td><td>✓</td><td></td><td><code>mm-lsp-server</code></td></tr>
 <tr><td>mint</td><td></td><td></td><td></td><td></td><td></td><td><code>mint</code></td></tr>
 <tr><td>miseconfig</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td><td><code>taplo</code>, <code>tombi</code></td></tr>
 <tr><td>mojo</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td><td><code>pixi</code></td></tr>
+<tr><td>moonbit</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td></td><td><code>moonbit-lsp</code></td></tr>
 <tr><td>move</td><td>✓</td><td></td><td>✓</td><td></td><td></td><td></td></tr>
 <tr><td>msbuild</td><td>✓</td><td></td><td>✓</td><td></td><td></td><td></td></tr>
 <tr><td>nasm</td><td>✓</td><td>✓</td><td></td><td></td><td></td><td><code>asm-lsp</code></td></tr>
 <tr><td>nearley</td><td>✓</td><td></td><td></td><td></td><td>✓</td><td></td></tr>
 <tr><td>nestedtext</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td><td></td></tr>
-<tr><td>nginx</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td>nginx</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>nginx-language-server</code></td></tr>
 <tr><td>nickel</td><td>✓</td><td></td><td>✓</td><td></td><td></td><td><code>nls</code></td></tr>
 <tr><td>nim</td><td>✓</td><td>✓</td><td>✓</td><td></td><td>✓</td><td><code>nimlangserver</code></td></tr>
 <tr><td>nix</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td><code>nil</code>, <code>nixd</code></td></tr>
@@ -2172,6 +2184,7 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>opencl</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td><td><code>clangd</code></td></tr>
 <tr><td>openscad</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>openscad-lsp</code></td></tr>
 <tr><td>org</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td>p</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>pascal</td><td>✓</td><td>✓</td><td></td><td></td><td></td><td><code>pasls</code></td></tr>
 <tr><td>passwd</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>pem</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
@@ -2196,6 +2209,7 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>prql</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>ptx</td><td>✓</td><td></td><td>✓</td><td></td><td></td><td></td></tr>
 <tr><td>pug</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td>puppet</td><td>✓</td><td></td><td>✓</td><td></td><td></td><td><code>puppet-languageserver</code></td></tr>
 <tr><td>purescript</td><td>✓</td><td>✓</td><td></td><td></td><td></td><td><code>purescript-language-server</code></td></tr>
 <tr><td>python</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td><code>ty</code>, <code>ruff</code>, <code>jedi-language-server</code>, <code>pylsp</code>, <code>zuban</code></td></tr>
 <tr><td>qml</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td><td><code>qmlls</code></td></tr>
@@ -2224,13 +2238,14 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>scfg</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>scheme</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td></td></tr>
 <tr><td>scss</td><td>✓</td><td></td><td>✓</td><td></td><td>✓</td><td><code>vscode-css-language-server</code></td></tr>
+<tr><td>sgf</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td><td></td></tr>
 <tr><td>shellcheckrc</td><td>✓</td><td>✓</td><td></td><td></td><td></td><td></td></tr>
 <tr><td>slang</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td><td><code>slangd</code></td></tr>
 <tr><td>slint</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td><td><code>slint-lsp</code></td></tr>
 <tr><td>slisp</td><td>✓</td><td></td><td></td><td>✓</td><td></td><td></td></tr>
 <tr><td>smali</td><td>✓</td><td></td><td>✓</td><td></td><td></td><td><code>smalisp</code></td></tr>
 <tr><td>smithy</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>cs</code></td></tr>
-<tr><td>sml</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td>sml</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>millet-ls</code></td></tr>
 <tr><td>snakemake</td><td>✓</td><td></td><td>✓</td><td></td><td></td><td><code>pylsp</code></td></tr>
 <tr><td>solidity</td><td>✓</td><td>✓</td><td></td><td></td><td>✓</td><td><code>solc</code></td></tr>
 <tr><td>sourcepawn</td><td>✓</td><td>✓</td><td></td><td></td><td></td><td><code>sourcepawn-studio</code></td></tr>
@@ -2254,7 +2269,7 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>task</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>tcl</td><td>✓</td><td></td><td>✓</td><td></td><td></td><td></td></tr>
 <tr><td>teal</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>teal-language-server</code></td></tr>
-<tr><td>templ</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>templ</code></td></tr>
+<tr><td>templ</td><td>✓</td><td>✓</td><td></td><td>✓</td><td>✓</td><td><code>templ</code></td></tr>
 <tr><td>tera</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>textproto</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td><td></td></tr>
 <tr><td>tfvars</td><td>✓</td><td></td><td>✓</td><td></td><td></td><td><code>terraform-ls</code></td></tr>
@@ -2276,6 +2291,7 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>uxntal</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>v</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td><td><code>v-analyzer</code></td></tr>
 <tr><td>vala</td><td>✓</td><td>✓</td><td></td><td></td><td></td><td><code>vala-language-server</code></td></tr>
+<tr><td>varlink</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>varlink-language-server</code></td></tr>
 <tr><td>vento</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>verilog</td><td>✓</td><td>✓</td><td></td><td></td><td></td><td><code>verible-verilog-ls</code></td></tr>
 <tr><td>vhdl</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>vhdl_ls</code></td></tr>
@@ -2295,6 +2311,7 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>xit</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>xml</td><td>✓</td><td>✓</td><td>✓</td><td></td><td>✓</td><td></td></tr>
 <tr><td>xtc</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td>xwiki</td><td>✓</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>yaml</td><td>✓</td><td>✓</td><td>✓</td><td></td><td>✓</td><td><code>yaml-language-server</code>, <code>ansible-language-server</code></td></tr>
 <tr><td>yara</td><td>✓</td><td></td><td></td><td></td><td></td><td><code>yls</code></td></tr>
 <tr><td>yuck</td><td>✓</td><td></td><td>✓</td><td></td><td>✓</td><td></td></tr>
@@ -2702,6 +2719,7 @@ Its settings will be merged with the configuration directory and the built-in co
 <li><a href="#editorguttersdiagnostics-section"><code>[editor.gutters.diagnostics]</code> Section</a></li>
 <li><a href="#editorguttersdiff-section"><code>[editor.gutters.diff]</code> Section</a></li>
 <li><a href="#editorguttersspacer-section"><code>[editor.gutters.spacer]</code> Section</a></li>
+<li><a href="#editorgutterscode-action-hint-section"><code>[editor.gutters.code-action-hint]</code> Section</a></li>
 </ul>
 </li>
 <li><a href="#editorsoft-wrap-section"><code>[editor.soft-wrap]</code> Section</a></li>
@@ -2728,7 +2746,7 @@ Its settings will be merged with the configuration directory and the built-in co
 <tr><td><code>cursorline</code></td><td>Highlight all lines with a cursor</td><td><code>false</code></td></tr>
 <tr><td><code>cursorcolumn</code></td><td>Highlight all columns with a cursor</td><td><code>false</code></td></tr>
 <tr><td><code>continue-comments</code></td><td>if helix should automatically add a line comment token if you create a new line inside a comment.</td><td><code>true</code></td></tr>
-<tr><td><code>gutters</code></td><td>Gutters to display: Available are <code>diagnostics</code> and <code>diff</code> and <code>line-numbers</code> and <code>spacer</code>, note that <code>diagnostics</code> also includes other features like breakpoints, 1-width padding will be inserted if gutters is non-empty</td><td><code>["diagnostics", "spacer", "line-numbers", "spacer", "diff"]</code></td></tr>
+<tr><td><code>gutters</code></td><td>Gutters to display: Available are <code>diagnostics</code> and <code>diff</code> and <code>line-numbers</code> and <code>spacer</code> and <code>code-action-hint</code>, note that <code>diagnostics</code> also includes other features like breakpoints, 1-width padding will be inserted if gutters is non-empty</td><td><code>["diagnostics", "spacer", "line-numbers", "spacer", "diff"]</code></td></tr>
 <tr><td><code>auto-completion</code></td><td>Enable automatic pop up of auto-completion</td><td><code>true</code></td></tr>
 <tr><td><code>path-completion</code></td><td>Enable filepath completion. Show files and directories if an existing path at the cursor was recognized, either absolute or relative to the current opened document or current working directory (if the buffer is not yet saved). Defaults to true.</td><td><code>true</code></td></tr>
 <tr><td><code>auto-format</code></td><td>Enable automatic formatting on save<sup class="footnote-reference" id="fr-3-1"><a href="#footnote-3">1</a></sup></td><td><code>true</code></td></tr>
@@ -2841,6 +2859,7 @@ workspace-diagnostics = ["warning", "error"]
 <tr><td><code>spacer</code></td><td>Inserts a space between elements (multiple/contiguous spacers may be specified)</td></tr>
 <tr><td><code>version-control</code></td><td>The current branch name or detached commit hash of the opened workspace</td></tr>
 <tr><td><code>register</code></td><td>The current selected register</td></tr>
+<tr><td><code>code-action-hint</code></td><td>Indicator for when code actions are available</td></tr>
 </tbody>
 </table>
 </div>
@@ -3113,6 +3132,9 @@ These colors are controlled by the theme attributes <code>diff.plus</code>, <cod
 <p>There are currently no options for this section.</p>
 <h4 id="editorguttersspacer-section"><a class="header" href="#editorguttersspacer-section"><code>[editor.gutters.spacer]</code> Section</a></h4>
 <p>Currently unused</p>
+<h4 id="editorgutterscode-action-hint-section"><a class="header" href="#editorgutterscode-action-hint-section"><code>[editor.gutters.code-action-hint]</code> Section</a></h4>
+<p>The <code>code-action-hint</code> gutter option displays an indicator for whether a code action is available at current selection.</p>
+<p>There are currently no options for this section.</p>
 <h3 id="editorsoft-wrap-section"><a class="header" href="#editorsoft-wrap-section"><code>[editor.soft-wrap]</code> Section</a></h3>
 <p>Options for soft wrapping lines that exceed the view width:</p>
 <div class="table-wrapper">
@@ -3535,9 +3557,11 @@ The key is a list of styles.</p>
 <li>
 <p><code>function</code> - Function definitions and calls</p>
 <ul>
+<li><code>public</code> - Public function definitions</li>
 <li><code>builtin</code> - Language built-in functions</li>
 <li><code>method</code> - Method definitions and calls (<code>obj.method()</code>)
 <ul>
+<li><code>public</code> - Public method definitions</li>
 <li><code>private</code> - Private methods that use a unique syntax (currently just ECMAScript-based languages)</li>
 </ul>
 </li>
@@ -3924,6 +3948,7 @@ language-servers = [ "mylang-lsp" ]
 <tr><td><code>workspace-lsp-roots</code></td><td>Directories (relative to the workspace root) that stop the upward root search early. Meant for project-specific hard overrides in a local <code>.helix/config.toml</code>;</td></tr>
 <tr><td><code>persistent-diagnostic-sources</code></td><td>An array of LSP diagnostic sources assumed unchanged when the language server resends the same set of diagnostics. Helix can track the position for these diagnostics internally instead. Useful for diagnostics that are recomputed on save.</td></tr>
 <tr><td><code>rainbow-brackets</code></td><td>Overrides the <code>editor.rainbow-brackets</code> config key for the language</td></tr>
+<tr><td><code>code-actions-on-save</code></td><td>List of LSP code actions to be run in order on save, for example <code>["source.organizeImports"]</code></td></tr>
 </tbody>
 </table>
 </div>
@@ -3980,6 +4005,25 @@ config matches files like <code>Cargo.toml</code> or <code>languages.toml</code>
 of the formatter command. In particular, the <code>%{buffer_name}</code> variable can be passed as
 argument to the formatter:</p>
 <pre><code class="language-toml">formatter = { command = "mylang-formatter" , args = ["--stdin", "--stdin-filename", "%{buffer_name}"] }
+</code></pre>
+<h3 id="configuring-code-actions-on-save"><a class="header" href="#configuring-code-actions-on-save">Configuring code actions on save</a></h3>
+<p>The <code>code-actions-on-save</code> key lists LSP code actions to run (in order) when
+the buffer is saved. The available actions depend on available language servers,
+below are common examples and may need adjusting for your setup.</p>
+<pre><code class="language-toml"># Python with ruff
+[[language]]
+name = "python"
+code-actions-on-save = ["source.organizeImports", "source.fixAll"]
+
+# TS/JS with tsserver
+[[language]]
+name = "typescript"
+code-actions-on-save = ["source.addMissingImports.ts"]
+
+# TS/JS with eslint
+[[language]]
+name = "javascript"
+code-actions-on-save = ["source.fixAll.eslint", "source.organizeImports"]
 </code></pre>
 <h2 id="language-server-configuration"><a class="header" href="#language-server-configuration">Language Server configuration</a></h2>
 <p>Language servers are configured separately in the table <code>language-server</code> in the same file as the languages <code>languages.toml</code></p>
@@ -5023,6 +5067,7 @@ languages. It is only necessary when the node that increments the nesting level
 
         <!-- Custom JS scripts -->
         <script src="ts-query-56018970.js"></script>
+        <script src="version-3313557a.js"></script>
 
         <script src="book-c22b7243.js"></script>
 
