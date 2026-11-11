@@ -299,6 +299,7 @@ where
             CursorKind::Block => SetCursorStyle::SteadyBlock,
             CursorKind::Bar => SetCursorStyle::SteadyBar,
             CursorKind::Underline => SetCursorStyle::SteadyUnderScore,
+            CursorKind::Natice => SetCursorStyle::DefaultUserShape,
             CursorKind::Hidden => unreachable!(),
         };
         queue!(self.buffer, Show, shape)
